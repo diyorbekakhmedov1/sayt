@@ -1,0 +1,847 @@
+import fs from 'fs';
+import path from 'path';
+import { 
+  Subject, Topic, Quiz, PracticeQuestion, Flashcard, Note, Bookmark, 
+  Achievement, User, Conversation, ChatMessage, QuizAttempt 
+} from '../types/index.ts';
+
+const DB_FILE = path.resolve(process.cwd(), '.nexora_data.json');
+
+// Default initial subjects
+export const INITIAL_SUBJECTS: Subject[] = [
+  {
+    id: 'math',
+    nameUz: 'Matematika',
+    nameEn: 'Mathematics',
+    nameRu: 'Математика',
+    category: 'exact',
+    icon: 'Calculator',
+    descriptionUz: 'Hisoblash, mantiq, hisob-kitoblar va fundamental matematik qonuniyatlar.',
+    descriptionEn: 'Calculations, logic, numbers and fundamental mathematical theorems.',
+    color: '#8b5cf6',
+    gradient: 'from-violet-600 to-indigo-600',
+    topicsCount: 14,
+    lessonsCount: 42,
+    progress: 75,
+  },
+  {
+    id: 'algebra-geom',
+    nameUz: 'Algebra va Geometriya',
+    nameEn: 'Algebra & Geometry',
+    nameRu: 'Алгебра и Геометрия',
+    category: 'exact',
+    icon: 'Shapes',
+    descriptionUz: 'Tenglamalar, fazoviy shakllar, vektorlar, trigonometriya va tahlil asoslari.',
+    descriptionEn: 'Equations, 3D shapes, vectors, trigonometry, and calculus basics.',
+    color: '#06b6d4',
+    gradient: 'from-cyan-500 to-blue-600',
+    topicsCount: 18,
+    lessonsCount: 54,
+    progress: 60,
+  },
+  {
+    id: 'physics',
+    nameUz: 'Fizika',
+    nameEn: 'Physics',
+    nameRu: 'Физика',
+    category: 'exact',
+    icon: 'Atom',
+    descriptionUz: 'Koinot qonunlari, mexanika, termodinamika, elektromagnetizm va kvant dunyosi.',
+    descriptionEn: 'Laws of nature, mechanics, thermodynamics, electromagnetism and quantum realms.',
+    color: '#3b82f6',
+    gradient: 'from-blue-600 to-cyan-600',
+    topicsCount: 16,
+    lessonsCount: 48,
+    progress: 45,
+  },
+  {
+    id: 'chemistry',
+    nameUz: 'Kimyo',
+    nameEn: 'Chemistry',
+    nameRu: 'Химия',
+    category: 'natural',
+    icon: 'FlaskConical',
+    descriptionUz: 'Moddalar tarkibi, Mendeleyev davriy jadvali, kimyoviy reaksiyalar va organik sintez.',
+    descriptionEn: 'Matter structure, periodic table, chemical bonds and organic synthesis.',
+    color: '#10b981',
+    gradient: 'from-emerald-500 to-teal-600',
+    topicsCount: 12,
+    lessonsCount: 36,
+    progress: 30,
+  },
+  {
+    id: 'biology',
+    nameUz: 'Biologiya',
+    nameEn: 'Biology',
+    nameRu: 'Биология',
+    category: 'natural',
+    icon: 'Dna',
+    descriptionUz: 'Hujayra tuzilishi, genetika, fotosintez, inson anatomiyasi va tirik organizmlar evolyutsiyasi.',
+    descriptionEn: 'Cell biology, genetics, photosynthesis, human anatomy and evolution.',
+    color: '#22c55e',
+    gradient: 'from-green-500 to-emerald-700',
+    topicsCount: 15,
+    lessonsCount: 45,
+    progress: 55,
+  },
+  {
+    id: 'cs',
+    nameUz: 'Dasturlash va IT',
+    nameEn: 'Computer Science',
+    nameRu: 'Информатика и IT',
+    category: 'it',
+    icon: 'Code2',
+    descriptionUz: 'Algoritmlar, maʼlumotlar tuzilmasi, Python, JavaScript, sunʼiy intellekt va veb-ishlab chiqish.',
+    descriptionEn: 'Algorithms, data structures, Python, AI foundations, and software engineering.',
+    color: '#a855f7',
+    gradient: 'from-purple-600 to-pink-600',
+    topicsCount: 22,
+    lessonsCount: 68,
+    progress: 88,
+  },
+  {
+    id: 'uzbek-lang',
+    nameUz: 'O‘zbek tili va Adabiyoti',
+    nameEn: 'Uzbek Language & Literature',
+    nameRu: 'Узбекский язык и литература',
+    category: 'humanitarian',
+    icon: 'BookOpen',
+    descriptionUz: 'Morfologiya, sintaksis, adabiy meros, Navoiy g‘azallari va orfoepik qoidalar.',
+    descriptionEn: 'Grammar, syntax, classical literature, poems and linguistic nuances.',
+    color: '#f59e0b',
+    gradient: 'from-amber-500 to-orange-600',
+    topicsCount: 14,
+    lessonsCount: 40,
+    progress: 40,
+  },
+  {
+    id: 'english',
+    nameUz: 'Ingliz tili (IELTS / CEFR)',
+    nameEn: 'English Language',
+    nameRu: 'Английский язык',
+    category: 'humanitarian',
+    icon: 'Languages',
+    descriptionUz: 'Grammatika, so‘z boyligi, ravon nutq, IELTS tayyorgarligi va eshitib tushunish.',
+    descriptionEn: 'Grammar, vocabulary, speaking fluency, IELTS prep, and reading comprehension.',
+    color: '#ec4899',
+    gradient: 'from-pink-500 to-rose-600',
+    topicsCount: 20,
+    lessonsCount: 60,
+    progress: 65,
+  },
+  {
+    id: 'history',
+    nameUz: 'O‘zbekiston va Jahon Tarixi',
+    nameEn: 'History',
+    nameRu: 'История',
+    category: 'humanitarian',
+    icon: 'Landmark',
+    descriptionUz: 'Buyuk allomalar, Amir Temur saltanati, jahon sivilizatsiyalari va tarixiy burilishlar.',
+    descriptionEn: 'Ancient civilizations, Silk Road, great thinkers, and modern world history.',
+    color: '#eab308',
+    gradient: 'from-yellow-500 to-amber-700',
+    topicsCount: 16,
+    lessonsCount: 48,
+    progress: 35,
+  },
+  {
+    id: 'geography',
+    nameUz: 'Geografiya',
+    nameEn: 'Geography',
+    nameRu: 'География',
+    category: 'natural',
+    icon: 'Globe2',
+    descriptionUz: 'Yer sayyorasi litosferasi, iqlim zonalari, jahon iqtisodiyoti va tabiiy boyliklar.',
+    descriptionEn: 'Planetary geology, atmosphere, world economic geography and ecosystems.',
+    color: '#14b8a6',
+    gradient: 'from-teal-500 to-cyan-700',
+    topicsCount: 12,
+    lessonsCount: 36,
+    progress: 50,
+  },
+];
+
+export const INITIAL_TOPICS: Topic[] = [
+  {
+    id: 'math-pythagoras',
+    subjectId: 'algebra-geom',
+    titleUz: 'Pifagor Teoremasi va Fazoviy Qo‘llanilishi',
+    titleEn: 'Pythagorean Theorem and Spatial Applications',
+    descriptionUz: 'To‘g‘ri burchakli uchburchak gipotenuzasi kvadrati katetlari kvadratlarining yig‘indisiga tengligi.',
+    level: 'intermediate',
+    grade: 8,
+    estimatedMinutes: 20,
+    completed: true,
+    prerequisites: ['Burchaklar turlari', 'Uchburchak xossalari'],
+    objectivesUz: [
+      'Gipotenuza va katetlar orasidagi kvadratik bog‘lanishni tushunish',
+      'Geometrik isbotni (Maydonlar tengligi) tahlil qilish',
+      'Masalalarda amaliy qo‘llash'
+    ],
+    keyFormulas: ['a² + b² = c²', 'c = √(a² + b²)', 'a = √(c² - b²)'],
+    contentUz: 'Pifagor teoremasi — Yevklid geometriyasining eng muhim asosiy ustunlaridan biridir. Agar uchburchakning bir burchagi to‘g‘ri (90°) bo‘lsa, uning qarshisidagi gipotenuza kvadrati qolgan ikki katet kvadratlari yig‘indisiga qat’iy teng bo‘ladi.'
+  },
+  {
+    id: 'physics-newton-laws',
+    subjectId: 'physics',
+    titleUz: 'Nyutonning Dinamika Qonunlari',
+    titleEn: 'Newton’s Laws of Motion',
+    descriptionUz: 'Inersiya, kuch va tezlanish bog‘liqligi, hamda ta’sir va aks-ta’sir qonunlari.',
+    level: 'intermediate',
+    grade: 9,
+    estimatedMinutes: 30,
+    completed: true,
+    prerequisites: ['Harakat turlari', 'Tezlik va tezlanish'],
+    objectivesUz: [
+      'Nyutonning 1, 2 va 3-qonunlari mazmunini tushunish',
+      'F = m * a formulasining fizik ma’nosini anglash',
+      'Reaktiv harakat va inersiyani tushunish'
+    ],
+    keyFormulas: ['F = m · a', 'F₁ = -F₂', 'p = m · v'],
+    contentUz: 'Klassik mexanika asoschisi Isaak Nyuton jismlar harakatini 3 ta fundamental qonun bilan ifodalagan. Ikkinchi qonunga binoan, jismga berilgan tezlanish unga ta’sir qilayotgan kuchga to‘g‘ri proportsional, jism massasiga esa teskari proportsionaldir.'
+  },
+  {
+    id: 'bio-dna-replication',
+    subjectId: 'biology',
+    titleUz: 'DNK Replikatsiyasi va Transkripsiya',
+    titleEn: 'DNA Replication and Transcription',
+    descriptionUz: 'Ikkilamchi spiral ochilishi, fermentlar roli (Helikaza, Polimeraza) va irsiy axborot uzatilishi.',
+    level: 'advanced',
+    grade: 10,
+    estimatedMinutes: 35,
+    completed: false,
+    prerequisites: ['Nuklein kislotalar', 'Hujayra yadrosi'],
+    objectivesUz: [
+      'Komplementarlik prinsipini (A=T, G≡C) bilish',
+      'Yarim-konservativ replikatsiya mexanizmini o‘rganish',
+      'DNK dan mRNK sintezlanish jarayonini tahlil qilish'
+    ],
+    keyFormulas: ['A + G = T + C (Chargaff qoidasi)'],
+    contentUz: 'DNK replikatsiyasi — tirik hujayralar bo‘linishidan oldin genetik kodni aynan nusxalash jarayonidir. Fermentlar yordamida qo‘sh spiral yechiladi va har bir zanjirga yangi komplementar nukleotidlar ulanadi.'
+  },
+  {
+    id: 'cs-algorithms-binary-search',
+    subjectId: 'cs',
+    titleUz: 'Ikkilik Qidiruv (Binary Search) va O(log n) Murakkablik',
+    titleEn: 'Binary Search Algorithm & O(log n) Complexity',
+    descriptionUz: 'Tartiblangan massivlarda elementni tezkor topish, bo‘lib tashla va hukmronlik qil usuli.',
+    level: 'intermediate',
+    grade: 11,
+    estimatedMinutes: 25,
+    completed: true,
+    prerequisites: ['Massivlar', 'Algoritmik murakkablik (Big-O)'],
+    objectivesUz: [
+      'Chiziqli va ikkilik qidiruv farqini bilish',
+      'Logarifmik murakkablik afzalligini anglash',
+      'C++ va Python tillarida kod yozish'
+    ],
+    keyFormulas: ['T(n) = O(log₂ n)', 'mid = low + (high - low) / 2'],
+    contentUz: 'Ikkilik qidiruv faqat tartiblangan to‘plamlarda ishlaydi. Har bir qadamda qidiruv maydoni teng 2 barobarga qisqaradi. Masalan, 1 000 000 ta element ichidan kerakli sonni atigi 20 ta taqqoslashda topish mumkin.'
+  },
+  {
+    id: 'chem-periodic-table',
+    subjectId: 'chemistry',
+    titleUz: 'Davriy Qonun va Atom Tuzilishi',
+    titleEn: 'Periodic Law and Atomic Structure',
+    descriptionUz: 'Elektron qobiqlar, ionlanish energiyasi, elektromanfiylik va elementlar xossalari davriyligi.',
+    level: 'beginner',
+    grade: 8,
+    estimatedMinutes: 25,
+    completed: false,
+    prerequisites: ['Atom tushunchasi', 'Proton, neytron, elektron'],
+    objectivesUz: [
+      'Davr va guruhlar bo‘ylab xossalar o‘zgarishini bilish',
+      'Elektron konfiguratsiyani (1s² 2s² 2p⁶) yozish',
+      'Valent elektronlarni aniqlash'
+    ],
+    keyFormulas: ['Z = Protonlar soni', 'A = Z + N (Massa soni)'],
+    contentUz: 'Dmitriy Mendeleyev kashf etgan davriy qonun moddalar xossalari ularning atom yadrosi zaryadiga davriy bog‘liqligini isbotlaydi.'
+  }
+];
+
+export const INITIAL_QUIZZES: Quiz[] = [
+  {
+    id: 'quiz-physics-1',
+    title: 'Fizika: Dinamika va Nyuton Qonunlari',
+    subjectId: 'physics',
+    topicId: 'physics-newton-laws',
+    description: 'Nyuton qonunlari, kuchlar muvozanati va mexanik harakat bo‘yicha sinov testi.',
+    difficulty: 'intermediate',
+    questionsCount: 5,
+    timeLimitMinutes: 10,
+    isAiGenerated: false,
+    questions: [
+      {
+        id: 'q1',
+        question: 'Massasi 5 kg bo‘lgan jismga 20 N kuch ta’sir qilmoqda. Jismning tezlanishini toping.',
+        options: ['2 m/s²', '4 m/s²', '10 m/s²', '100 m/s²'],
+        correctIndex: 1,
+        explanation: 'F = m · a formulasidan: a = F / m = 20 N / 5 kg = 4 m/s².',
+        hint: 'Nyutonning ikkinchi qonuni: F = m * a formulasidan a ni ajrating.'
+      },
+      {
+        id: 'q2',
+        question: 'Nyutonning 3-qonuniga ko‘ra ta’sir va aks-ta’sir kuchlari haqida qaysi fikr to‘g‘ri?',
+        options: [
+          'Ular bir jismga qo‘yilgan va bir-birini kompensatsiyalaydi',
+          'Ular teng modulga va qarama-qarshi yo‘nalishga ega, ammo turli jismlarga qo‘yilgan',
+          'Aks-ta’sir kuchi ta’sir kuchidan har doim biroz kechikib paydo bo‘ladi',
+          'Faqat harakatdagi jismlar uchun amal qiladi'
+        ],
+        correctIndex: 1,
+        explanation: 'Uchinchi qonunda F₁ = -F₂. Muhimi: bu kuchlar doim IKKI XIL jismga qo‘yilgan bo‘ladi, shuning uchun bir-birini nolga tenglashtirmaydi.',
+        hint: 'Kuchlar bir xil jismga ta’sir qiladimi yoki bir-biriga ta’sir qiluvchi ikki jismgami?'
+      },
+      {
+        id: 'q3',
+        question: 'Jismga boshqa jismlar ta’sir qilmasa yoki ta’sirlar kompensatsiyalansa, u qanday holatda bo‘ladi?',
+        options: [
+          'Faqat tinch holatda turadi',
+          'Doim tezlanuvchan harakat qiladi',
+          'Tinch holatini yoki to‘g‘ri chiziqli tekis harakatini saqlaydi',
+          'Dumaloq traektoriya bo‘ylab aylanadi'
+        ],
+        correctIndex: 2,
+        explanation: 'Bu Nyutonning 1-qonuni (inersiya qonuni): tashqi kuchlar bo‘lmasa jism v = const (tekis to‘g‘ri chiziqli) yoki v = 0 saqlaydi.',
+        hint: 'Inersiya qonunini eslang.'
+      },
+      {
+        id: 'q4',
+        question: 'Oyda og‘irlik kuchi Yerga nisbatan 6 marta kam. Yerda massasi 60 kg bo‘lgan astronavtning Oydagi massasi qancha bo‘ladi?',
+        options: ['10 kg', '60 kg', '360 kg', '0 kg'],
+        correctIndex: 1,
+        explanation: 'Massa — jismning inertlik o‘lchovi bo‘lib, u koinotning hech qayerida o‘zgarmaydi! Faqat og‘irlik kuchi (og‘irlik P = mg) 6 marta kamayadi.',
+        hint: 'Massa va og‘irlik kuchini chalkashtirmang.'
+      },
+      {
+        id: 'q5',
+        question: 'Agar jismning tezligi 2 marta oshirilsa, uning kinetik energiyasi necha marta o‘zgaradi?',
+        options: ['2 marta oshadi', '4 marta oshadi', 'O‘zgarmaydi', '2 marta kamayadi'],
+        correctIndex: 1,
+        explanation: 'Kinetik energiya Ek = (m · v²) / 2. Tezlik kvadratik bo‘lgani sababli, 2² = 4 marta ortadi.',
+        hint: 'Ek formulasi: (m * v^2) / 2.'
+      }
+    ]
+  },
+  {
+    id: 'quiz-cs-algorithms',
+    title: 'Algoritmlar: Ikkilik Qidiruv va Asimptotik Tahlil',
+    subjectId: 'cs',
+    topicId: 'cs-algorithms-binary-search',
+    description: 'Algoritmik fikrlash, Big-O murakkablik va dasturlash optimallashtirishlari.',
+    difficulty: 'intermediate',
+    questionsCount: 4,
+    timeLimitMinutes: 8,
+    isAiGenerated: false,
+    questions: [
+      {
+        id: 'cq1',
+        question: 'Ikkilik qidiruv (Binary Search) algoritmining asosiy talabi nima?',
+        options: [
+          'Massiv elementlari faqat butun son bo‘lishi kerak',
+          'Massiv elementlari saralangan (tartiblangan) bo‘lishi shart',
+          'Massiv uzunligi 2 ning darajasi bo‘lishi shart',
+          'Hech qanday maxsus shart yo‘q'
+        ],
+        correctIndex: 1,
+        explanation: 'Ikkilik qidiruv elementlar tartiblangan bo‘lsagina ishlaydi, chunki o‘rtadagi qiymatga qarab qaysi yarmni tashlab yuborishni aniqlaydi.',
+        hint: 'Elementlar qanday tartibda joylashgan bo‘lishi kerak?'
+      },
+      {
+        id: 'cq2',
+        question: '1024 ta elementdan iborat tartiblangan massivda ikkilik qidiruv eng ko‘pi bilan necha qadamda javob topadi?',
+        options: ['10 qadam', '100 qadam', '512 qadam', '1024 qadam'],
+        correctIndex: 0,
+        explanation: 'log₂(1024) = 10. Shuning uchun maksimal 10 ta taqqoslash yetarli bo‘ladi.',
+        hint: '2 ning nechanchi darajasi 1024 ga teng?'
+      },
+      {
+        id: 'cq3',
+        question: 'Chiziqli qidiruv (Linear search) murakkabligi qanday?',
+        options: ['O(1)', 'O(log n)', 'O(n)', 'O(n²)'],
+        correctIndex: 2,
+        explanation: 'Chiziqli qidiruvda har bir element birma-bir tekshirilgani sababli eng yomon holatda n ta qadam talab etiladi: O(n).',
+        hint: 'Massivdagi hamma elementlar ketma-ket tekshiriladi.'
+      },
+      {
+        id: 'cq4',
+        question: 'Big-O notasida O(1) nimani anglatadi?',
+        options: [
+          'Algoritm har doim 1 soniya vaqt oladi',
+          'Bajarilish vaqti kiruvchi ma’lumotlar hajmiga bog‘liq emas (o‘zgarmas vaqt)',
+          'Algoritm faqat bitta elementni qaytara oladi',
+          'Eng sekin ishlovchi algoritm'
+        ],
+        correctIndex: 1,
+        explanation: 'O(1) doimiy (constant) vaqtni bildiradi. Massiv hajmi 10 ta yoki 10 000 000 ta bo‘lishidan qat’i nazar bir xil vaqtda bajariladi.',
+        hint: 'O‘zgarmas (constant) vaqt murakkabligi.'
+      }
+    ]
+  }
+];
+
+export const INITIAL_PRACTICE: PracticeQuestion[] = [
+  {
+    id: 'pr-1',
+    subjectId: 'algebra-geom',
+    topicId: 'math-pythagoras',
+    type: 'math',
+    question: 'To‘g‘ri burchakli uchburchakning katetlari 6 sm va 8 sm ga teng. Gipotenuzasi uzunligini (sm da) toping.',
+    options: ['9', '10', '12', '14'],
+    correctAnswer: '10',
+    hint: 'c² = a² + b² = 6² + 8² = 36 + 64.',
+    explanation: 'c² = 36 + 64 = 100. Demak c = √100 = 10 sm.',
+    difficulty: 'beginner'
+  },
+  {
+    id: 'pr-2',
+    subjectId: 'cs',
+    topicId: 'cs-algorithms-binary-search',
+    type: 'code',
+    question: 'Python tilida ikkilik qidiruvning o‘rta indeksini hisoblashda butun sonli bo‘lish amali qaysi belgi bilan yoziladi?',
+    options: ['/', '//', '%', 'div'],
+    correctAnswer: '//',
+    hint: 'Python tilida float emas, butun qismni olish operatori.',
+    explanation: 'Python da `//` operatori qoldiqsiz butun bo‘lishni bildiradi (masalan, 7 // 2 = 3).',
+    difficulty: 'beginner'
+  },
+  {
+    id: 'pr-3',
+    subjectId: 'physics',
+    topicId: 'physics-newton-laws',
+    type: 'mcq',
+    question: 'Erkin tushish tezlanishi g Yer sirtida taxminan qanchaga teng deb olinadi?',
+    options: ['9.8 m/s²', '3.14 m/s²', '1.6 m/s²', '300 000 km/s'],
+    correctAnswer: '9.8 m/s²',
+    hint: 'Maktab fizikasida 9.8 yoki yaxlitlab 10 olinadi.',
+    explanation: 'Standart erkin tushish tezlanishi g ≈ 9.80665 m/s² deb qabul qilingan.',
+    difficulty: 'beginner'
+  }
+];
+
+export const INITIAL_FLASHCARDS: Flashcard[] = [
+  {
+    id: 'fc-1',
+    subjectId: 'algebra-geom',
+    topic: 'Pifagor Teoremasi',
+    front: 'Pifagor uchligi: Katetlari 3 va 4 bo‘lsa, gipotenuzasi qancha?',
+    back: '5 (chunki 3² + 4² = 9 + 16 = 25 = 5²)',
+    masteryLevel: 4,
+    reviewCount: 3,
+  },
+  {
+    id: 'fc-2',
+    subjectId: 'physics',
+    topic: 'Nyuton Qonunlari',
+    front: 'Nyutonning ikkinchi qonuni formulasi qanday?',
+    back: 'F = m · a (Kuch = massa · tezlanish)',
+    masteryLevel: 3,
+    reviewCount: 2,
+  },
+  {
+    id: 'fc-3',
+    subjectId: 'biology',
+    topic: 'Genetika',
+    front: 'DNK da Adenin (A) ga komplementar juft qaysi asos?',
+    back: 'Timin (T) — ular o‘rtasida 2 ta vodorod bog‘i hosil bo‘ladi.',
+    masteryLevel: 5,
+    reviewCount: 5,
+  },
+  {
+    id: 'fc-4',
+    subjectId: 'cs',
+    topic: 'Algoritmlar',
+    front: 'Binary search algoritmining asimptotik vaqt murakkabligi?',
+    back: 'O(log n) — har bir taqqoslashda qidiruv doirasi 2 barobarga qisqaradi.',
+    masteryLevel: 4,
+    reviewCount: 4,
+  }
+];
+
+export const INITIAL_ACHIEVEMENTS: Achievement[] = [
+  {
+    id: 'ach-first-step',
+    titleUz: 'Ilk Qadam',
+    titleEn: 'First Step',
+    descriptionUz: 'Nexora AI platformasida dastlabki darsni muvaffaqiyatli tamomlang.',
+    icon: 'Sparkles',
+    unlocked: true,
+    progress: 1,
+    maxProgress: 1,
+    unlockedAt: '2026-10-10T10:00:00Z',
+  },
+  {
+    id: 'ach-quiz-master',
+    titleUz: 'Viktorina Ustasi',
+    titleEn: 'Quiz Master',
+    descriptionUz: '5 ta viktorinada 90% dan yuqori natija qayd eting.',
+    icon: 'Trophy',
+    unlocked: true,
+    progress: 3,
+    maxProgress: 5,
+  },
+  {
+    id: 'ach-streak-7',
+    titleUz: 'Yetti Kunlik Olov',
+    titleEn: '7-Day Streak',
+    descriptionUz: 'Ketma-ket 7 kun davomida bilim o‘rganish seriyasini ushlab turing.',
+    icon: 'Flame',
+    unlocked: false,
+    progress: 4,
+    maxProgress: 7,
+  },
+  {
+    id: 'ach-ai-explorer',
+    titleUz: 'AI Tadqiqotchi',
+    titleEn: 'AI Explorer',
+    descriptionUz: 'Nexora AI yordamchisiga 25 ta ilmiy savol bering.',
+    icon: 'BrainCircuit',
+    unlocked: false,
+    progress: 12,
+    maxProgress: 25,
+  },
+  {
+    id: 'ach-polymath',
+    titleUz: 'Qomusiy Zukko',
+    titleEn: 'Polymath',
+    descriptionUz: 'Kamida 5 xil fan bo‘yicha mavzularni o‘rganib chiqing.',
+    icon: 'Compass',
+    unlocked: true,
+    progress: 5,
+    maxProgress: 5,
+    unlockedAt: '2026-10-11T16:20:00Z',
+  }
+];
+
+// Initial demo user (Student) and Admin
+export const INITIAL_USERS: User[] = [
+  {
+    id: 'user-student-1',
+    name: 'Doniyor Ahmedov',
+    email: 'axmedovdoniyor931@gmail.com',
+    role: 'student',
+    grade: '10-sinf',
+    avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    xp: 2840,
+    streak: 5,
+    createdAt: '2026-09-01T08:00:00Z',
+  },
+  {
+    id: 'user-admin-1',
+    name: 'Nexora Boshqaruvchi',
+    email: 'admin@nexora.ai',
+    role: 'admin',
+    grade: 'Administrator',
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    xp: 9999,
+    streak: 30,
+    createdAt: '2026-08-01T08:00:00Z',
+  }
+];
+
+// In-memory + persistent store
+interface DbStore {
+  users: User[];
+  subjects: Subject[];
+  topics: Topic[];
+  quizzes: Quiz[];
+  practice: PracticeQuestion[];
+  flashcards: Flashcard[];
+  achievements: Achievement[];
+  conversations: Conversation[];
+  messages: ChatMessage[];
+  bookmarks: Bookmark[];
+  notes: Note[];
+  quizAttempts: QuizAttempt[];
+}
+
+let dbState: DbStore = {
+  users: INITIAL_USERS,
+  subjects: INITIAL_SUBJECTS,
+  topics: INITIAL_TOPICS,
+  quizzes: INITIAL_QUIZZES,
+  practice: INITIAL_PRACTICE,
+  flashcards: INITIAL_FLASHCARDS,
+  achievements: INITIAL_ACHIEVEMENTS,
+  conversations: [
+    {
+      id: 'conv-1',
+      userId: 'user-student-1',
+      title: 'Kvant fizikasi va Shredinger tenglamasi',
+      subjectId: 'physics',
+      createdAt: '2026-10-11T09:00:00Z',
+      updatedAt: '2026-10-11T09:20:00Z',
+      messagesCount: 4,
+    },
+    {
+      id: 'conv-2',
+      userId: 'user-student-1',
+      title: 'Python da Binary Search yozish',
+      subjectId: 'cs',
+      createdAt: '2026-10-10T14:30:00Z',
+      updatedAt: '2026-10-10T14:45:00Z',
+      messagesCount: 3,
+    }
+  ],
+  messages: [
+    {
+      id: 'msg-1',
+      conversationId: 'conv-1',
+      role: 'user',
+      content: 'Salom Nexora! Kvant fizikasidagi Shredinger mushugi tajribasini sodda qilib tushuntirib bera olasanmi?',
+      timestamp: '2026-10-11T09:00:00Z',
+      subjectId: 'physics',
+      difficulty: 'intermediate',
+    },
+    {
+      id: 'msg-2',
+      conversationId: 'conv-1',
+      role: 'assistant',
+      content: 'Assalomu alaykum! Albatta, mamnuniyat bilan tushuntiraman.\n\n### 📦 Shredinger Mushugi nima?\nErvin Shredinger bu xayoliy tajribani kvant mexanikasidagi g‘alati tushuncha — **superpozitsiya**ni ko‘rsatish uchun o‘ylab topgan.\n\n1. **Oddiy dunyo:** Masalan, xonada tanga bor. U yoki raqam, yoki gerb tomoni bilan tushgan. Biz qaramasak ham u bitta aniq holatda turadi.\n2. **Kvant dunyosi:** Atom va elektronlar darajasida zarracha biz uni kuzatgunimizcha (o‘lchaguncha) bir vaqtning o‘zida BIR NECHTA holatda — ya’ni superpozitsiyada bo‘ladi!\n\n💡 **Xulosa:** Qutini ochib qaraguningizcha, kvant qoidalari bo‘yicha mushuk ham tirik, ham o‘lik ehtimollarining qo‘shilmasida turadi. Kuzatuvchi nazar solgan lahzada esa to‘lqin funksiyasi yemirilib, bitta aniq voqelikka aylanadi!',
+      timestamp: '2026-10-11T09:00:30Z',
+      subjectId: 'physics',
+    }
+  ],
+  bookmarks: [
+    {
+      id: 'bm-1',
+      type: 'topic',
+      title: 'Pifagor Teoremasi va Fazoviy Qo‘llanilishi',
+      subjectName: 'Algebra va Geometriya',
+      refId: 'math-pythagoras',
+      createdAt: '2026-10-10T11:00:00Z',
+    },
+    {
+      id: 'bm-2',
+      type: 'formula',
+      title: 'F = m · a (Nyutonning 2-qonuni)',
+      subjectName: 'Fizika',
+      refId: 'physics-newton-laws',
+      createdAt: '2026-10-11T12:00:00Z',
+    }
+  ],
+  notes: [
+    {
+      id: 'note-1',
+      title: 'Binary search qaydnomasi',
+      content: 'Massiv har doim saralangan bo‘lishi lozim! mid = low + (high - low) // 2 ko‘rinishida olish butun son chegarasidan oshib ketishning oldini oladi.',
+      subjectId: 'cs',
+      createdAt: '2026-10-10T15:00:00Z',
+      updatedAt: '2026-10-10T15:00:00Z',
+    }
+  ],
+  quizAttempts: []
+};
+
+// Load saved data if present
+try {
+  if (fs.existsSync(DB_FILE)) {
+    const raw = fs.readFileSync(DB_FILE, 'utf-8');
+    const parsed = JSON.parse(raw);
+    dbState = { ...dbState, ...parsed };
+  }
+} catch (e) {
+  console.warn('Failed to load .nexora_data.json, using defaults', e);
+}
+
+function persist() {
+  try {
+    fs.writeFileSync(DB_FILE, JSON.stringify(dbState, null, 2), 'utf-8');
+  } catch (err) {
+    console.error('Failed to persist dbState:', err);
+  }
+}
+
+export const db = {
+  getSubjects: () => dbState.subjects,
+  getSubjectById: (id: string) => dbState.subjects.find(s => s.id === id),
+  
+  getTopics: (subjectId?: string) => {
+    if (subjectId) return dbState.topics.filter(t => t.subjectId === subjectId);
+    return dbState.topics;
+  },
+  getTopicById: (id: string) => dbState.topics.find(t => t.id === id),
+  addTopic: (topic: Topic) => {
+    dbState.topics.push(topic);
+    persist();
+    return topic;
+  },
+  updateTopic: (id: string, updates: Partial<Topic>) => {
+    const idx = dbState.topics.findIndex(t => t.id === id);
+    if (idx !== -1) {
+      dbState.topics[idx] = { ...dbState.topics[idx], ...updates };
+      persist();
+      return dbState.topics[idx];
+    }
+    return null;
+  },
+  deleteTopic: (id: string) => {
+    dbState.topics = dbState.topics.filter(t => t.id !== id);
+    persist();
+    return true;
+  },
+
+  getQuizzes: (subjectId?: string) => {
+    if (subjectId) return dbState.quizzes.filter(q => q.subjectId === subjectId);
+    return dbState.quizzes;
+  },
+  getQuizById: (id: string) => dbState.quizzes.find(q => q.id === id),
+  addQuiz: (quiz: Quiz) => {
+    dbState.quizzes.unshift(quiz);
+    persist();
+    return quiz;
+  },
+  recordQuizAttempt: (attempt: QuizAttempt) => {
+    dbState.quizAttempts.unshift(attempt);
+    // Award XP to user
+    const user = dbState.users.find(u => u.id === attempt.userId);
+    if (user) {
+      user.xp += Math.round(attempt.score * 20);
+    }
+    persist();
+    return attempt;
+  },
+
+  getPractice: (subjectId?: string) => {
+    if (subjectId) return dbState.practice.filter(p => p.subjectId === subjectId);
+    return dbState.practice;
+  },
+
+  getFlashcards: () => dbState.flashcards,
+  addFlashcard: (fc: Flashcard) => {
+    dbState.flashcards.unshift(fc);
+    persist();
+    return fc;
+  },
+  reviewFlashcard: (id: string, result: 'easy' | 'good' | 'hard') => {
+    const fc = dbState.flashcards.find(f => f.id === id);
+    if (fc) {
+      fc.reviewCount += 1;
+      fc.lastReviewed = new Date().toISOString();
+      if (result === 'easy') fc.masteryLevel = Math.min(5, fc.masteryLevel + 1);
+      else if (result === 'hard') fc.masteryLevel = Math.max(0, fc.masteryLevel - 1);
+      persist();
+      return fc;
+    }
+    return null;
+  },
+
+  getBookmarks: () => dbState.bookmarks,
+  addBookmark: (bm: Bookmark) => {
+    dbState.bookmarks.unshift(bm);
+    persist();
+    return bm;
+  },
+  removeBookmark: (id: string) => {
+    dbState.bookmarks = dbState.bookmarks.filter(b => b.id !== id);
+    persist();
+    return true;
+  },
+
+  getNotes: () => dbState.notes,
+  addNote: (note: Note) => {
+    dbState.notes.unshift(note);
+    persist();
+    return note;
+  },
+  deleteNote: (id: string) => {
+    dbState.notes = dbState.notes.filter(n => n.id !== id);
+    persist();
+    return true;
+  },
+
+  getAchievements: () => dbState.achievements,
+  
+  getConversations: (userId: string) => {
+    return dbState.conversations.filter(c => c.userId === userId);
+  },
+  createConversation: (conv: Conversation) => {
+    dbState.conversations.unshift(conv);
+    persist();
+    return conv;
+  },
+  deleteConversation: (id: string) => {
+    dbState.conversations = dbState.conversations.filter(c => c.id !== id);
+    dbState.messages = dbState.messages.filter(m => m.conversationId !== id);
+    persist();
+    return true;
+  },
+  getMessages: (conversationId: string) => {
+    return dbState.messages.filter(m => m.conversationId === conversationId);
+  },
+  addMessage: (msg: ChatMessage) => {
+    dbState.messages.push(msg);
+    const conv = dbState.conversations.find(c => c.id === msg.conversationId);
+    if (conv) {
+      conv.updatedAt = new Date().toISOString();
+      conv.messagesCount += 1;
+    }
+    persist();
+    return msg;
+  },
+
+  getUsers: () => dbState.users,
+  getUserById: (id: string) => dbState.users.find(u => u.id === id),
+  getUserByEmail: (email: string) => dbState.users.find(u => u.email.toLowerCase() === email.toLowerCase()),
+  addUser: (user: User) => {
+    dbState.users.push(user);
+    persist();
+    return user;
+  },
+  updateUser: (id: string, updates: Partial<User>) => {
+    const idx = dbState.users.findIndex(u => u.id === id);
+    if (idx !== -1) {
+      dbState.users[idx] = { ...dbState.users[idx], ...updates };
+      persist();
+      return dbState.users[idx];
+    }
+    return null;
+  },
+
+  checkInStreak: (userId: string) => {
+    const user = dbState.users.find(u => u.id === userId);
+    if (user) {
+      user.streak += 1;
+      user.xp += 50;
+      persist();
+      return { streak: user.streak, xp: user.xp };
+    }
+    return null;
+  },
+
+  getAnalytics: (userId: string) => {
+    const user = dbState.users.find(u => u.id === userId);
+    const userAttempts = dbState.quizAttempts.filter(a => a.userId === userId);
+    const totalScore = userAttempts.reduce((acc, a) => acc + a.percentage, 0);
+    const avgAccuracy = userAttempts.length > 0 ? Math.round(totalScore / userAttempts.length) : 88;
+    
+    return {
+      totalStudyMinutes: 245,
+      completedLessons: 18,
+      quizzesTaken: Math.max(userAttempts.length, 6),
+      quizAccuracy: avgAccuracy,
+      streakDays: user ? user.streak : 5,
+      weeklyActivity: [
+        { dayUz: 'Du', minutes: 45 },
+        { dayUz: 'Se', minutes: 30 },
+        { dayUz: 'Chor', minutes: 60 },
+        { dayUz: 'Pay', minutes: 25 },
+        { dayUz: 'Jum', minutes: 50 },
+        { dayUz: 'Shan', minutes: 40 },
+        { dayUz: 'Yak', minutes: 20 },
+      ],
+      subjectMastery: [
+        { subjectUz: 'Dasturlash va IT', percentage: 88, color: '#a855f7' },
+        { subjectUz: 'Matematika', percentage: 75, color: '#8b5cf6' },
+        { subjectUz: 'Algebra va Geometriya', percentage: 60, color: '#06b6d4' },
+        { subjectUz: 'Fizika', percentage: 55, color: '#3b82f6' },
+        { subjectUz: 'Biologiya', percentage: 50, color: '#22c55e' },
+      ],
+      weakTopics: [
+        { id: 'physics-thermo', titleUz: 'Termodinamika 2-qonuni va Entropiya', subjectUz: 'Fizika', accuracy: 54 },
+        { id: 'math-integrals', titleUz: 'Aniq va Noaniq Integrallar', subjectUz: 'Matematika', accuracy: 62 },
+        { id: 'chem-redox', titleUz: 'Oksidlanish-Qaytarilish Reaksiyalari', subjectUz: 'Kimyo', accuracy: 58 }
+      ]
+    };
+  }
+};

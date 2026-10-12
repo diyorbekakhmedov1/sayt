@@ -1,0 +1,6 @@
+{
+  "name": "NEXORA AI",
+  "description": "Kelajak avlod ta'lim platformasi — sun'iy intellekt asosida shaxsiylashtirilgan interaktiv o'rganish tizimi.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
